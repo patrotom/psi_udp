@@ -17,6 +17,6 @@ Sonda komunikuje pomocí protokolu UDP a přijímá data na portu 4000. Proces b
 
 ### Formát paketu ###
 
-| identifikátor 'spojení' | sekvenční číslo | číslo potvrzení | příznak	data | data   |
-| ----------------------- | --------------- | --------------- | ------------ | ------ |
-| 4B                      | 2B              | 2B              | 1B           | 0-255B |
+| **identifikátor 'spojení'** | **sekvenční číslo** | **číslo potvrzení** | **příznak	data** | **data** |
+| --------------------------- | ------------------- | ------------------- | ------------------ | -------- |
+| 4B                          | 2B                  | 2B                  | 1B                 | 0-255B   |
