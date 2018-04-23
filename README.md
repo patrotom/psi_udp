@@ -228,8 +228,8 @@ Za úlohu můžete dostat max. 8 bodů. Penalizace:
 
 ## Odkazy ##
 
-[Wikipedia - BSD sockets](http://en.wikipedia.org/wiki/Berkeley_sockets)
-[Rozhraní Sockets - Java](http://java.sun.com/docs/books/tutorial/networking/TOC.html)
-[Rozhraní Sockets klient TCP a UDP - Java](http://www.eli.sdsu.edu/courses/spring96/cs596/notes/andrew/javanet.html)
-[Transportní rozhraní - BSD sockets](http://www.earchiv.cz/a93/a315c110.php3)
-[Unix sockets FAQ - vynikající](http://www.developerweb.net/forum/forumdisplay.php?f=70)
+* [Wikipedia - BSD sockets](http://en.wikipedia.org/wiki/Berkeley_sockets)
+* [Rozhraní Sockets - Java](http://java.sun.com/docs/books/tutorial/networking/TOC.html)
+* [Rozhraní Sockets klient TCP a UDP - Java](http://www.eli.sdsu.edu/courses/spring96/cs596/notes/andrew/javanet.html)
+* [Transportní rozhraní - BSD sockets](http://www.earchiv.cz/a93/a315c110.php3)
+* [Unix sockets FAQ - vynikající](http://www.developerweb.net/forum/forumdisplay.php?f=70)
