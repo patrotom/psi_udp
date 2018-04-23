@@ -18,8 +18,8 @@ Sonda komunikuje pomocí protokolu UDP a přijímá data na portu 4000. Proces b
 ### Formát paketu ###
 
 | **identifikátor 'spojení'** | **sekvenční číslo** | **číslo potvrzení** | **příznak	data** | **data** |
-| --------------------------- | ------------------- | ------------------- | ------------------ | -------- |
-| 4B                          | 2B                  | 2B                  | 1B                 | 0-255B   |
+| --------------------------- | ------------------- | ------------------- | ---------------- | -------- |
+| 4B                          | 2B                  | 2B                  | 1B               | 0-255B   |
 
 * identifikátor 'spojení' - vygenerovaný serverem (pro umožnění transportu dat více souborů najednou),
 * sekvenční číslo - číslo prvního byte v posílaných datech,
@@ -30,9 +30,9 @@ Sonda komunikuje pomocí protokolu UDP a přijímá data na portu 4000. Proces b
 * Identifikátor spojení a sekvenční čísla se přenášejí v reprezentaci network byte order (big endian). Příklad:
 
 | **dekadicky** | **hexadecimálně** | **pořadí bytů** |
-| --- | --- | --- | --- |
-| 1234 | 04D2h | 04h | D2h |
-| 34566 | 8706h | 87h | 06h |
+| ------------- | ----------------- | --------------- |  |
+| 1234          | 04D2h             | 04h             | D2h |
+| 34566         | 8706h             | 87h             | 06h |
 
 #### Identifikátor spojení #####
 Identifikátor spojení je nenulové číslo. Při navazování spojení posílá klient identifikátor spojení nastavený na nulu. Při další komunikaci použije klient identifikátor spojení, který mu vrátí server v prvním paketu.
@@ -40,14 +40,14 @@ Identifikátor spojení je nenulové číslo. Při navazování spojení posíl�
 #### Příznaky ####
 
 | **číslo bitu** | **7** | **6** | **5** | **4** | **3** | **2** | **1** | **0** |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| příznak | - | - | - | - | - | SYN | FIN | RST |
+| -------------- | ----- | ----- | ----- | ----- | ----- | ----- | ----- | ----- |
+| příznak        | -     | -     | -     | -     | -     | SYN   | FIN   | RST   |
 
-| příznak | význam |
-| --- | --- |
-| SYN | Otevření nového spojení. Posílá klient i server (pouze) na začátku v prvním paketu. V datové části musí být právě 1 byte s kódem příkazu. |
-| FIN | Ukončení spojení. Posílá klient i server, pokud již nemají žádná další data k odeslání. Paket s nastaveným příznakem FIN již nemůže obsahovat žádná data. Ukončení spojení nelze odvolat. Oba směry spojení se uzavírají zvlášť. Sekvenční číslo se po odeslání FIN již nesmí zvětšit. |
-| RST | Zrušení spojení kvůli chybě. Posílá klient i server v případě detekování logické chyby v hodnotách v hlavičce. Např. přijatý paket neobsahuje příznak SYN a ID spojení není evidováno. Nebo je hodnota potvrzovacího čísla menší, než byla v posledním přijatém paketu (klesá). Pozor na přetečení sekvenčních a potvrzovacích čísel. Žádná z komunikujících stran po odeslání paketu s příznakem RST již dále neukončuje spojení standardním způsobem - spojení je přenosem paketu s příznakem RST definitivně ukončeno. |
+| příznak | význam                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SYN     | Otevření nového spojení. Posílá klient i server (pouze) na začátku v prvním paketu. V datové části musí být právě 1 byte s kódem příkazu.                                                                                                                                                                                                                                                                                                                                                                                 |
+| FIN     | Ukončení spojení. Posílá klient i server, pokud již nemají žádná další data k odeslání. Paket s nastaveným příznakem FIN již nemůže obsahovat žádná data. Ukončení spojení nelze odvolat. Oba směry spojení se uzavírají zvlášť. Sekvenční číslo se po odeslání FIN již nesmí zvětšit.                                                                                                                                                                                                                                    |
+| RST     | Zrušení spojení kvůli chybě. Posílá klient i server v případě detekování logické chyby v hodnotách v hlavičce. Např. přijatý paket neobsahuje příznak SYN a ID spojení není evidováno. Nebo je hodnota potvrzovacího čísla menší, než byla v posledním přijatém paketu (klesá). Pozor na přetečení sekvenčních a potvrzovacích čísel. Žádná z komunikujících stran po odeslání paketu s příznakem RST již dále neukončuje spojení standardním způsobem - spojení je přenosem paketu s příznakem RST definitivně ukončeno. |
 
 Jednotlivé příznaky (SYN, FIN, RST) nelze spolu kombinovat.
 
@@ -73,10 +73,10 @@ Iniciátorem spojení je vždy klient.
 
 Klient pošle první datagram s příznakem SYN a s identifikátorem spojení, sekvenčním číslem a číslem potvrzení nastaveným na nulu. Datová část musí obsahovat právě 1 byte s kódem příkazu:
 
-| příkaz | význam |
-| --- | --- |
-| 01h | Download | fotografie | okolí |
-| 02h  | Upload | nového | firmwaru |
+| **příkaz** | **význam**                |
+| ---------- | ------------------------- |
+| 01h        | Download fotografie okolí |
+| 02h        | Upload nového firmwaru    |
 
 Server odpoví datagramem s nastaveným příznakem SYN, nenulovým identifikátorem spojení a se sekvenčním číslem a číslem potvrzení nastavenými na nulu. Datová část obsahuje 1 byte s kódem příkazu, který bude proveden.
 
@@ -139,3 +139,97 @@ Po přijetí chybného paketu odešle příjemce (klient i server) paket s pří
 
 [Příklady komunikace jsou na zvláštní stránce.](/test/communication.md)
 
+## Chybovost sítě ##
+
+Možné chyby na síti:
+
+* ztráta libovolného paketu,
+* duplikace libovolného paketu,
+* prohození libovolných paketů,
+* proměnné zpoždění sítě.
+
+Server tyto chyby emuluje. Může se stát, že server 20x způsobí ztrátu stejného paketu a dojde k odeslání paketu s příznakem RST a rozpadu spojení. Tato chyba není na závadu při odevzdávání úlohy (přenos se při odevzdávání zopakuje).
+
+## Požadavky ##
+
+* program musí být stabilní a odolný proti neočekávaným vstupům,
+* přenesený soubor (download i upload) nesmí být poškozen,
+* program se musí umět vyrovnat s faktem, že UDP pakety se občas ztratí, zduplikují či prohodí,
+* program by měl vypisovat alespoň základní informace o svém stavu (např. posílané a přijímané příkazy či odpovědi),
+* IP adresa nebo DNS jméno serveru se zadává jako parametr v příkazové řádce při spuštění programu (tzn. není zadrátovaná ve zdrojového kódu), syntaxe viz níže,
+* zdrojový text musí být komentovaný, v hlavičce všech zdrojových textů musí být uveden autor,
+* lze použít libovolný programovací jazyk, jedinou podmínkou je schopnost odprezentovat funkčnost v síťové laboratoři,
+* doporučuje se psát kód do jednoho zdrojového kódu pro snadnější uploadování,
+* program musí přijímat parametry z příkazové řádky s následující syntaxí:
+
+**Download fotografie** (příkaz 01h): `./robot <server>` 
+Výsledná fotografie bude uložena v souboru foto.png.
+
+**Upload firmwaru** (příkaz 02h): `./robot <server> <firmware.bin>`
+
+`<server>` je jméno nebo IP adresa serveru a `<firmware>` je soubor s novým firmwarem pro robota.
+
+`Příklad volání: java robot.Robot 81.25.17.115 /data/firmware.bin`
+
+## Testování ##
+
+Pro testování můžete použít testovací obraz pro virtualizační systém Virtualbox. Doporučuje se pro testovaní pod Windows, nebo OSX. Pro testovaní je třeba síťový adaptér pro virtuální stroj nastavit jako bridge adapter (síťový most) - toto je vhodné pokud jste v lokální síti, kde virtuální stroj dostane vlastní IP adresu. Pokud to není možné, použijte Host only (Síť pouze s hostem). Po naběhnutí je nutné zjistit přidělenou IP adresu virtuálního stroje, na ni se budete svým klientem připojovat. Poté stačí spustit testovací server pomocí příkazu: *Spust_server_pro_ulohu_c_2*
+
+Testovací obraz obsahuje i klienta v binární podobě.
+
+K dispozici je staticky přeložený UDP server, který běží v testovači. Poznámky k jeho použití:
+
+* Ověřte si občas, není-li k dispozici novější verze.
+* Server spusťte např. takto: ./kareludp-server 1000 - foto.png firmware.bin
+
+kde 1000 je UID uživatele (jakékoliv číslo postačí), pod kterým server poběží, foto.png je cesta k fotografii a firmware.bin je akceptovaný firmware.
+
+* Nebo můžete spustit server skriptem *Spust_server_pro_ulohu_c_2*, nebo *Spust_server_pro_ulohu_c_2_64bit*.
+
+## Ke stažení ##
+
+| soubor | odkaz |
+| --- | --- |
+| Referenční řešení - server + klient (binárky pro linux 32bit i 64bit a windows) |	[kareludp.zip](https://edux.fit.cvut.cz/courses/BI-PSI/_media/labs/kareludp.zip) |
+| Testovací obraz pro Virtualbox | [bi-psi_core_6.1.ova.zip](https://edux.fit.cvut.cz/courses/BI-PSI/_media/bi-psi_core_6.1.ova.zip) |
+
+## Termín a způsob odevzdání ##
+
+Úlohu je nutné nahrát na odevzdávací server [PSI bouda](https://bouda.felk.cvut.cz/) a odprezentovat vyučujícímu.
+
+Odevzdat lze pouze takový program, který je schopný úspěšně stáhnout fotografii (pro odevzdání stačí předvést úspěšné stažení souboru s fotografií bez ohledu na následky u serveru či klienta)
+
+Úlohu lze odevzdat nejpozději v den konání zkoušky.
+
+`Prezentovat úlohu lze i během zkouškového období vždy v den termínu konání zkoušky. Po každé zkoušce budou probíhat prezentace v prostoru před kanceláří 1133 v budově A.`
+
+## Bodování ##
+
+Za úlohu můžete dostat max. 8 bodů. Penalizace:
+
+* program neumí stáhnout fotografii: *nelze odevzdat* !
+* program neumí provést upload firmwaru: -4
+* nebylo korektně uzavřeno spojení: -1
+* chybně implementovaný okénkový protokol: dle povahy -1 až -4
+* nestabilita: -3
+* malá odolnost vůči nestandardním vstupům: -3
+* chyby v programu, které se neprojevily přímo: dle povahy -1 až -5
+* nečistý zdrojový kód: -1
+* zdrojový kód nebyl průběžně uploadován na server Baryk: -5
+
+## Literatura ##
+
+[Demo aplet pro lepší pochopení okénkového komunikačního schématu](http://www2.rad.com/networks/2004/sliding_window/demo.html)
+
+## Doporučená literatura ##
+
+* [Sliding window demo](http://www2.rad.com/networks/2004/sliding_window/)
+* [Reliable Message Transport Protocol](http://www.cs.ucsb.edu/~almeroth/classes/S00.276/hw1/hw1.html)
+
+## Odkazy ##
+
+[Wikipedia - BSD sockets](http://en.wikipedia.org/wiki/Berkeley_sockets)
+[Rozhraní Sockets - Java](http://java.sun.com/docs/books/tutorial/networking/TOC.html)
+[Rozhraní Sockets klient TCP a UDP - Java](http://www.eli.sdsu.edu/courses/spring96/cs596/notes/andrew/javanet.html)
+[Transportní rozhraní - BSD sockets](http://www.earchiv.cz/a93/a315c110.php3)
+[Unix sockets FAQ - vynikající](http://www.developerweb.net/forum/forumdisplay.php?f=70)
