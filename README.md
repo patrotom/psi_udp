@@ -18,8 +18,8 @@ Sonda komunikuje pomocí protokolu UDP a přijímá data na portu 4000. Proces b
 ### Formát paketu ###
 
 | **identifikátor 'spojení'** | **sekvenční číslo** | **číslo potvrzení** | **příznak	data** | **data** |
-| --------------------------- | ------------------- | ------------------- | ---------------- | -------- |
-| 4B                          | 2B                  | 2B                  | 1B               | 0-255B   |
+| --------------------------- | ------------------- | ------------------- | ------------------ | -------- |
+| 4B                          | 2B                  | 2B                  | 1B                 | 0-255B   |
 
 * identifikátor 'spojení' - vygenerovaný serverem (pro umožnění transportu dat více souborů najednou),
 * sekvenční číslo - číslo prvního byte v posílaných datech,
@@ -31,8 +31,8 @@ Identifikátor spojení a sekvenční čísla se přenášejí v reprezentaci ne
 
 | **dekadicky** | **hexadecimálně** | **pořadí bytů** |
 | ------------- | ----------------- | --------------- |
-| 1234          | 04D2h             | 04h D2h |
-| 34566         | 8706h             | 87h 06h |
+| 1234          | 04D2h             | 04h D2h         |
+| 34566         | 8706h             | 87h 06h         |
 
 #### Identifikátor spojení #####
 Identifikátor spojení je nenulové číslo. Při navazování spojení posílá klient identifikátor spojení nastavený na nulu. Při další komunikaci použije klient identifikátor spojení, který mu vrátí server v prvním paketu.
