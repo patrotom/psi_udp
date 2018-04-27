@@ -59,7 +59,7 @@ class Handler():
     def handle(self, operation):
         '''Method which handles required operation (0-download, 1-upload)'''
         try:
-            if operation:
+            if operation == 2:
                 u = Upload(self.sock)
                 u.start()
             else:
@@ -68,28 +68,36 @@ class Handler():
         except KeyboardInterrupt:
             print('Killed by KeyboardInterrupt')
 
-class Download():
+class Operation():
+    '''Class from which will Download/Upload use common operations'''
+    def __init__ (self, sock, controller):
+        '''Constructor'''
+        self.sock = sock
+        self.controller = controller
+    
+    def setup(self, type):
+        '''Method which tells the probe that we are going to download a picture or upload a firmware'''
+        sent = (0).to_bytes(8, 'big') + (4).to_bytes(1, 'big') + (type).to_bytes(1, 'big')
+        to_print = (0).to_bytes(4, 'big'), (0).to_bytes(2, 'big'), (0).to_bytes(2, 'big'), (4).to_bytes(1, 'big'), (type).to_bytes(1, 'big')
+        self.controller.print(to_print, 'SEND')
+        self.sock.sendto(sent, SERVER_ADDRESS)
+        received = self.controller.receive()
+        self.controller.print(received, 'RECV')
+
+class Download(Operation):
     '''Class which handles downloading of a picture from the probe'''
     def __init__(self, sock):
         '''Constructor'''
-        self.sock = sock
-        self.controler = DatagramControl(self.sock)
+        self.sock = sock        
+        self.controller = DatagramControl(self.sock)
+        super().__init__(self.sock, self.controller)
         self.id = b''
 
     def start(self):
         '''Method which starts and handles downloading'''
-        self.setup()
+        super().setup(1)
     
-    def setup(self):
-        '''Method which tells the probe that we are going to download a picture'''
-        sent = (0).to_bytes(8, 'big') + (4).to_bytes(1, 'big') + (1).to_bytes(1, 'big')
-        to_print = (0).to_bytes(4, 'big'), (0).to_bytes(2, 'big'), (0).to_bytes(2, 'big'), (4).to_bytes(1, 'big'), (1).to_bytes(1, 'big')
-        self.controler.print(to_print, 'SEND')
-        self.sock.sendto(sent, SERVER_ADDRESS)
-        received = self.controler.receive()
-        self.controler.print(received, 'RECV')
-        
-class Upload():
+class Upload(Operation):
     '''Class which handles uploading of a firmware to the probe'''
     def __init__(self, sock):
         '''Constructor'''
@@ -105,6 +113,6 @@ def main():
     print('Starting up on {}, port {}\n'.format(*server_address))
     sock.bind(server_address)
     h = Handler(sock)
-    h.handle(False)
+    h.handle(1)
     
 main ()
