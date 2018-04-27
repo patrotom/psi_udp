@@ -233,3 +233,14 @@ Za úlohu můžete dostat max. 8 bodů. Penalizace:
 * [Rozhraní Sockets klient TCP a UDP - Java](http://www.eli.sdsu.edu/courses/spring96/cs596/notes/andrew/javanet.html)
 * [Transportní rozhraní - BSD sockets](http://www.earchiv.cz/a93/a315c110.php3)
 * [Unix sockets FAQ - vynikající](http://www.developerweb.net/forum/forumdisplay.php?f=70)
+
+## Additonal information ##
+
+* It is possible ot send datagrams using nc tool
+    * `-u` use UDP instead of default TCP
+    * `-q` wait the specified number of seconds and then quit
+    * read `man nc` for additinal information
+
+``` bash
+echo -n "Test" | nc -u -q 1 localhost 10000
+```
