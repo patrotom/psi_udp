@@ -74,6 +74,7 @@ class Operation():
         '''Constructor'''
         self.sock = sock
         self.controller = controller
+        self.id = b''
     
     def setup(self, type):
         '''Method which tells the probe that we are going to download a picture or upload a firmware'''
@@ -88,10 +89,7 @@ class Download(Operation):
     '''Class which handles downloading of a picture from the probe'''
     def __init__(self, sock):
         '''Constructor'''
-        self.sock = sock        
-        self.controller = DatagramControl(self.sock)
-        super().__init__(self.sock, self.controller)
-        self.id = b''
+        super().__init__(sock, DatagramControl(sock))
 
     def start(self):
         '''Method which starts and handles downloading'''
@@ -101,8 +99,7 @@ class Upload(Operation):
     '''Class which handles uploading of a firmware to the probe'''
     def __init__(self, sock):
         '''Constructor'''
-        self.sock = sock
-        self.controler = DatagramControl(self.sock)
+        super().__init__(sock, DatagramControl(sock))
     
     def start(self):
         '''Method which starts and handles uploading'''
