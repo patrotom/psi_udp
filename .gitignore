@@ -8,6 +8,9 @@
 tsconfig.json
 jsconfig.json
 
+### User defined ###
+test.py
+
 ### Python ###
 # Byte-compiled / optimized / DLL files
 __pycache__/
