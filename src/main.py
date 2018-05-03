@@ -5,6 +5,7 @@ from binascii import hexlify
 
 BUFFER_SIZE = 512
 SERVER_ADDRESS = '127.0.0.1', 4000
+CHUNK = 255
 
 class DatagramControl():
     '''Class which receives messages'''
@@ -33,16 +34,16 @@ class DatagramControl():
         print(str(hexlify(message[0]), 'utf-8') + ' ' + type, '', end=' ')
         tmp = int(str(hexlify(message[1]), 'utf-8'), base=16)
         print('seq=' + str(tmp), '', end=' ')
-        tmp = int(str(hexlify(message[1]), 'utf-8'), base=16)
+        tmp = int(str(hexlify(message[2]), 'utf-8'), base=16)
         print('ack=' + str(tmp), '', end=' ')
         print('flags=' + str(hexlify(message[3]), 'utf-8'), end=' ')
         print('data(' + str(len(message[4])) + '):', end=' ')
         if len(message[4]) > 1:
             for i in range(0, 8):
-                print(hex(message[4][i])[2:], end=' ')
+                print(hex(message[4][i])[2:].zfill(2), end=' ')
             print('...', end=' ')
             for i in range (len(message[4]) - 1, len(message[4]) - 9, -1):
-                print(hex(message[4][i])[2:], end=' ')
+                print(hex(message[4][i])[2:].zfill(2), end=' ')
         elif len(message[4]) == 1:
             print(str(hexlify(message[4]), 'utf-8'), end='')
         else:
@@ -66,7 +67,7 @@ class Handler():
                 d = Download(self.sock)
                 d.start()
         except KeyboardInterrupt:
-            print('Killed by KeyboardInterrupt')
+            print('\nKilled by KeyboardInterrupt')
 
 class Operation():
     '''Class from which will Download/Upload use common operations'''
@@ -75,6 +76,9 @@ class Operation():
         self.sock = sock
         self.controller = controller
         self.id = b''
+        self.ack = 0
+        self.ackChunks = []
+        self.seq = 0
     
     def setup(self, type):
         '''Method which tells the probe that we are going to download a picture or upload a firmware'''
@@ -83,6 +87,7 @@ class Operation():
         self.controller.print(to_print, 'SEND')
         self.sock.sendto(sent, SERVER_ADDRESS)
         received = self.controller.receive()
+        self.id = received[0]
         self.controller.print(received, 'RECV')
 
 class Download(Operation):
@@ -90,10 +95,29 @@ class Download(Operation):
     def __init__(self, sock):
         '''Constructor'''
         super().__init__(sock, DatagramControl(sock))
+        self.data = {}
 
     def start(self):
         '''Method which starts and handles downloading'''
         super().setup(1)
+        self.download()
+    
+    def download(self):
+        '''Method which downloads data from the probe'''
+        while True:
+            received = self.controller.receive()
+            self.controller.print(received, 'RECV')
+
+            if self.ackChunks.count(self.ack) == 0:
+                self.ackChunks.append(self.ack)
+                self.data[self.ack] = received[4]
+                if self.ack == int.from_bytes(received[1], 'big'):
+                    self.ack += CHUNK
+
+            sent = self.id + (0).to_bytes(2, 'big') + self.ack.to_bytes(2, 'big') + (0).to_bytes(1, 'big')
+            to_print = self.id, (0).to_bytes(2, 'big'), self.ack.to_bytes(2, 'big'), (0).to_bytes(1, 'big'), []
+            self.sock.sendto(sent, SERVER_ADDRESS)
+            self.controller.print(to_print, 'SEND')
     
 class Upload(Operation):
     '''Class which handles uploading of a firmware to the probe'''
