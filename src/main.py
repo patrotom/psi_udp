@@ -163,7 +163,7 @@ class Download(Operation):
                 self.seqChunks[int.from_bytes(received[1], 'big')] = 1
                 self.ackChunks.append(int.from_bytes(received[1], 'big'))
                 self.data[int.from_bytes(received[1], 'big')] = received[4]
-                if self.ack == int.from_bytes(received[1], 'big'):
+                if (self.ack % 65536) == int.from_bytes(received[1], 'big'):
                     self.ack = (self.ack + CHUNK) % 65536
             else:
                 self.seqChunks[int.from_bytes(received[1], 'big')] += 1
@@ -171,7 +171,7 @@ class Download(Operation):
                     raise SequenceErrorClient
             
             while True:
-                if self.ackChunks.count(self.ack) == 0:
+                if self.ackChunks.count(self.ack % 65536) == 0:
                     break
                 self.ack = (self.ack + CHUNK) % 65536
 

@@ -10,6 +10,7 @@ jsconfig.json
 
 ### User defined ###
 test.py
+tmp/**
 
 ### Python ###
 # Byte-compiled / optimized / DLL files
