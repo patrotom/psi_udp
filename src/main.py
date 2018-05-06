@@ -9,9 +9,9 @@ CHUNK = 255
 
 class Error(Exception):
     pass
-class SequenceErrorClient(Error):
+class ErrorClient(Error):
     pass
-class SequenceErrorServer(Error):
+class ErrorServer(Error):
     pass
 
 class DatagramControl():
@@ -85,6 +85,7 @@ class Operation():
         self.id = b''
         self.ack = 0
         self.ackChunks = []
+        self.seqChunks = {}
         self.seq = 0
     
     def setup(self, type):
@@ -99,6 +100,8 @@ class Operation():
             self.sock.sendto(sent, SERVER_ADDRESS)
             try:
                 received = self.controller.receive()
+                if int.from_bytes(received[3], 'big') != 4:
+                    flag = False
             except socket.timeout:
                 flag = False
             if flag == True:
@@ -114,19 +117,20 @@ class Download(Operation):
         '''Constructor'''
         super().__init__(sock, DatagramControl(sock))
         self.data = {}
-        self.seqChunks = {}
+        self.lastSeq = -1
+        self.lastSize = -1
 
     def start(self):
         '''Method which starts and handles downloading'''
         try:
             super().setup(1)
-            print('=========================================\nConnecton established, now downloading...\n=========================================')
+            print('\n=========================================\nConnecton established, now downloading...\n=========================================\n')
             self.download()
-        except SequenceErrorClient:
-            print('====================================================\nConnection closed due to error on the client side...\n====================================================')
+        except ErrorClient:
             self.endError()
+            print('====================================================\nConnection closed due to error on the client side...\n====================================================')
             return
-        except SequenceErrorServer:
+        except ErrorServer:
             print('====================================================\nConnection closed due to error on the server side...\n====================================================')
             self.sock.close()
             return
@@ -146,7 +150,9 @@ class Download(Operation):
         to_print = self.id, (0).to_bytes(2, 'big'), self.ack.to_bytes(2, 'big'), (2).to_bytes(1, 'big'), []
         self.sock.sendto(sent, SERVER_ADDRESS)
         self.controller.print(to_print, 'SEND')
+        
         self.sock.close()
+        print('=================================================================\nSuccess: Connection was closed. Transferred', self.ack, 'bytes','\n=================================================================')
 
     def download(self):
         '''Method which downloads data from the probe'''
@@ -156,24 +162,35 @@ class Download(Operation):
 
             if int.from_bytes(received[3], 'big') == 2:
                 break
-            elif int.from_bytes(received[3], 'big') == 1:
-                raise SequenceErrorServer
-            # print('Desired chunk:', self.ack, 'Actual chunk:', int.from_bytes(received[1], 'big'))
+            if int.from_bytes(received[3], 'big') == 1:
+                raise ErrorServer
+            if received[0] != self.id:
+                raise ErrorClient
+            
             if self.ackChunks.count(int.from_bytes(received[1], 'big')) == 0:
                 self.seqChunks[int.from_bytes(received[1], 'big')] = 1
                 self.ackChunks.append(int.from_bytes(received[1], 'big'))
                 self.data[int.from_bytes(received[1], 'big')] = received[4]
+                if len(received[4]) != 255:
+                    self.lastSeq = int.from_bytes(received[1], 'big')
+                    self.lastSize = len(received[4])
                 if (self.ack % 65536) == int.from_bytes(received[1], 'big'):
-                    self.ack = (self.ack + CHUNK) % 65536
+                    if len(received[4]) == 255:
+                        self.ack = (self.ack + CHUNK) % 65536
+                    else:
+                        self.ack = (self.ack + len(received[4])) % 65536
             else:
                 self.seqChunks[int.from_bytes(received[1], 'big')] += 1
                 if self.seqChunks[int.from_bytes(received[1], 'big')] == 20:
-                    raise SequenceErrorClient
+                    raise ErrorClient
             
             while True:
                 if self.ackChunks.count(self.ack % 65536) == 0:
                     break
-                self.ack = (self.ack + CHUNK) % 65536
+                if self.lastSeq != self.ack:
+                    self.ack = (self.ack + CHUNK) % 65536
+                else:
+                    self.ack = (self.ack + self.lastSize) % 65536
 
             sent = self.id + (0).to_bytes(2, 'big') + self.ack.to_bytes(2, 'big') + (0).to_bytes(1, 'big')
             to_print = self.id, (0).to_bytes(2, 'big'), self.ack.to_bytes(2, 'big'), (0).to_bytes(1, 'big'), []
