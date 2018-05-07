@@ -93,7 +93,9 @@ class Operation():
         self.ackChunks = []
         self.seqChunks = {}
         self.seq = 0
-        self.data = SortedDict({})
+        self.data = {}
+        self.modList = []
+        self.lastData = b''
     
     def setup(self, type):
         '''Method which tells the probe that we are going to download a picture or upload a firmware'''
@@ -143,12 +145,12 @@ class Operation():
         self.controller.print(to_print, 'SEND')
         self.sock.close()
         print('======================================================\nSuccess: Connection was closed. All bytes transferred.\n======================================================')
-        dataKeys = list(self.data.keys())
-        f = open('foto.png', 'wb')
-        for i in dataKeys:
-            f.write(self.data[i])
-            print(i, end=',')
-        print('')
+        f = open('tmp/transferred.png', 'wb')
+        for i in self.modList:
+            dataKeys = list(self.data[i].keys())
+            for j in dataKeys:
+                f.write(self.data[i][j])
+        f.write(self.lastData)
         f.close()
 
 class Download(Operation):
@@ -202,10 +204,20 @@ class Download(Operation):
         if self.ackChunks.count(int.from_bytes(received[1], 'big')) == 0:
             self.seqChunks[int.from_bytes(received[1], 'big')] = 1
             self.ackChunks.append(int.from_bytes(received[1], 'big'))
-            self.data[int.from_bytes(received[1], 'big')] = received[4]
+            
+            if len(received[4]) == CHUNK:
+                idx = int.from_bytes(received[1], 'big') % CHUNK
+                if idx == 0:
+                    idx = CHUNK
+                if self.modList.count(idx) == 0:
+                    self.data[idx] = SortedDict({})
+                    self.modList.append(idx)
+                self.data[idx][int.from_bytes(received[1], 'big')] = received[4]
+
             if len(received[4]) != CHUNK:
                 self.lastSeq = int.from_bytes(received[1], 'big')
                 self.lastSize = len(received[4])
+                self.lastData = received[4]
             if (self.ack % MOD) == int.from_bytes(received[1], 'big'):
                 if len(received[4]) == CHUNK:
                     self.ack = (self.ack + CHUNK) % MOD
@@ -248,20 +260,14 @@ class Upload(Operation):
         '''Method which uploads firmware to probe'''
 
 def parseArgs():
-    args = str(sys.argv)
-    args = args.replace('[', '')
-    args = args.replace(']', '')
-    args = args.replace("'", '')
-    args = args.replace(' ', '')
-    argList = args.split(',')[1:]
     global SERVER_ADDRESS
     global FIRMWARE
-    if len(argList) == 1:
-        SERVER_ADDRESS = argList[0], 4000
+    if len(sys.argv) == 2:
+        SERVER_ADDRESS = sys.argv[1], 4000
         return 1
-    elif len(argList) == 2:
-        SERVER_ADDRESS = argList[0], 4000
-        FIRMWARE = argList[1]
+    elif len(sys.argv) == 3:
+        SERVER_ADDRESS = sys.argv[1], 4000
+        FIRMWARE = sys.argv[2]
         return 2
 
 def main():
