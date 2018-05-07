@@ -5,7 +5,10 @@ from binascii import hexlify
 from sortedcontainers import SortedDict
 
 BUFFER_SIZE = 512
-SERVER_ADDRESS = '127.0.0.1', 4000
+SERVER_PORT = 4000
+CLIENT_PORT = 10000
+CLIENT_ADDRESS = 'localhost'
+SERVER_ADDRESS = '127.0.0.1', SERVER_PORT
 FIRMWARE = 'firmware.bin'
 CHUNK = 255
 MOD = 65536
@@ -263,16 +266,16 @@ def parseArgs():
     global SERVER_ADDRESS
     global FIRMWARE
     if len(sys.argv) == 2:
-        SERVER_ADDRESS = sys.argv[1], 4000
+        SERVER_ADDRESS = sys.argv[1], SERVER_PORT
         return 1
     elif len(sys.argv) == 3:
-        SERVER_ADDRESS = sys.argv[1], 4000
+        SERVER_ADDRESS = sys.argv[1], SERVER_PORT
         FIRMWARE = sys.argv[2]
         return 2
 
 def main():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    server_address = ('localhost', 10000)
+    server_address = (CLIENT_ADDRESS, CLIENT_PORT)
     print('Starting up on {}, port {}\n'.format(*server_address))
     sock.bind(server_address)
     h = Handler(sock)
