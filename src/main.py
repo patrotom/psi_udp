@@ -2,6 +2,7 @@
 import socket
 import sys
 from binascii import hexlify
+from sortedcontainers import SortedDict
 
 BUFFER_SIZE = 512
 SERVER_ADDRESS = '127.0.0.1', 4000
@@ -92,6 +93,7 @@ class Operation():
         self.ackChunks = []
         self.seqChunks = {}
         self.seq = 0
+        self.data = SortedDict({})
     
     def setup(self, type):
         '''Method which tells the probe that we are going to download a picture or upload a firmware'''
@@ -141,6 +143,13 @@ class Operation():
         self.controller.print(to_print, 'SEND')
         self.sock.close()
         print('======================================================\nSuccess: Connection was closed. All bytes transferred.\n======================================================')
+        dataKeys = list(self.data.keys())
+        f = open('foto.png', 'wb')
+        for i in dataKeys:
+            f.write(self.data[i])
+            print(i, end=',')
+        print('')
+        f.close()
 
 class Download(Operation):
     '''Class which handles downloading of a picture from the probe'''
@@ -159,6 +168,7 @@ class Download(Operation):
             super().endConnection()
         except ErrorServer:
             print('=====================================================\nError detected on the server side, connection closed.\n=====================================================')
+            self.sock.close()
         except ErrorClient:
             super().endError()
             print('=====================================================\nError detected on the client side, connection closed.\n=====================================================')
@@ -169,7 +179,6 @@ class Download(Operation):
         while True:
             received = self.controller.receive()
             self.controller.print(received, 'RECV')
-
             if int.from_bytes(received[3], 'big') == 2:
                 if len(received[4]) != 0:
                     raise ErrorClient
@@ -193,6 +202,7 @@ class Download(Operation):
         if self.ackChunks.count(int.from_bytes(received[1], 'big')) == 0:
             self.seqChunks[int.from_bytes(received[1], 'big')] = 1
             self.ackChunks.append(int.from_bytes(received[1], 'big'))
+            self.data[int.from_bytes(received[1], 'big')] = received[4]
             if len(received[4]) != CHUNK:
                 self.lastSeq = int.from_bytes(received[1], 'big')
                 self.lastSize = len(received[4])
@@ -222,9 +232,20 @@ class Upload(Operation):
     
     def start(self):
         '''Method which starts and handles uploading'''
-        print('Uploading firmware...')
-        print(SERVER_ADDRESS)
-        print(FIRMWARE)
+        try:
+            super().setup(2)
+            print('\n===========================================\nConnecton established, now uploading...\n===========================================\n')
+            self.upload()
+            super().endConnection()
+        except ErrorServer:
+            print('=====================================================\nError detected on the server side, connection closed.\n=====================================================')
+        except ErrorClient:
+            super().endError()
+            print('=====================================================\nError detected on the client side, connection closed.\n=====================================================')
+            self.sock.close()
+    
+    def upload(self):
+        '''Method which uploads firmware to probe'''
 
 def parseArgs():
     args = str(sys.argv)
