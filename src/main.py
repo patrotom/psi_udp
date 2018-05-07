@@ -263,6 +263,7 @@ class Upload(Operation):
         '''Method which uploads firmware to probe'''
 
 def parseArgs():
+    '''Function which parses input arguments'''
     global SERVER_ADDRESS
     global FIRMWARE
     if len(sys.argv) == 2:
@@ -274,6 +275,7 @@ def parseArgs():
         return 2
 
 def main():
+    '''Main of this program'''
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     server_address = (CLIENT_ADDRESS, CLIENT_PORT)
     print('Starting up on {}, port {}\n'.format(*server_address))
