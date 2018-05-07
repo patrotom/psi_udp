@@ -108,6 +108,8 @@ class Operation():
                 if cnt == 20:
                     raise ErrorClient
                 received = self.controller.receive()
+                self.id = received[0]
+                self.controller.print(received, 'RECV')
                 if int.from_bytes(received[3], 'big') != 4:
                     flag = False
                 elif int.from_bytes(received[3], 'big') == 0:
@@ -117,9 +119,9 @@ class Operation():
             if flag == True:
                 break
             cnt += 1
-
-        self.id = received[0]
-        self.controller.print(received, 'RECV')
+        
+        if len(received[4]) != 1 and (int.from_bytes(received[4], 'big') != 1 or int.from_bytes(received[4], 'big') != 2):
+            raise ErrorClient
         self.sock.settimeout(1)
     
     def endError(self):
@@ -172,39 +174,45 @@ class Download(Operation):
             if int.from_bytes(received[3], 'big') == 2:
                 break
             if int.from_bytes(received[3], 'big') == 1:
+                raise ErrorServer
+            if int.from_bytes(received[3], 'big') != 0:
                 raise ErrorClient
             if received[0] != self.id:
                 raise ErrorClient
-            
-            if self.ackChunks.count(int.from_bytes(received[1], 'big')) == 0:
-                self.seqChunks[int.from_bytes(received[1], 'big')] = 1
-                self.ackChunks.append(int.from_bytes(received[1], 'big'))
-                if len(received[4]) != CHUNK:
-                    self.lastSeq = int.from_bytes(received[1], 'big')
-                    self.lastSize = len(received[4])
-                if (self.ack % MOD) == int.from_bytes(received[1], 'big'):
-                    if len(received[4]) == CHUNK:
-                        self.ack = (self.ack + CHUNK) % MOD
-                    else:
-                        self.ack = (self.ack + len(received[4])) % MOD
-            else:
-                self.seqChunks[int.from_bytes(received[1], 'big')] += 1
-                if self.seqChunks[int.from_bytes(received[1], 'big')] == 20:
-                    raise ErrorServer
 
-            while True:
-                if self.ackChunks.count(self.ack % MOD) == 0:
-                    break
-                if self.lastSeq != self.ack:
-                    self.ack = (self.ack + CHUNK) % MOD
-                else:
-                    self.ack = (self.ack + self.lastSize) % MOD
+            self.ackCount(received)
 
             sent = self.id + (0).to_bytes(2, 'big') + self.ack.to_bytes(2, 'big') + (0).to_bytes(1, 'big')
             to_print = self.id, (0).to_bytes(2, 'big'), self.ack.to_bytes(2, 'big'), (0).to_bytes(1, 'big'), []
             self.sock.sendto(sent, SERVER_ADDRESS)
             self.controller.print(to_print, 'SEND')
     
+    def ackCount(self, received):
+        '''Method which calculates desired ack'''
+        if self.ackChunks.count(int.from_bytes(received[1], 'big')) == 0:
+            self.seqChunks[int.from_bytes(received[1], 'big')] = 1
+            self.ackChunks.append(int.from_bytes(received[1], 'big'))
+            if len(received[4]) != CHUNK:
+                self.lastSeq = int.from_bytes(received[1], 'big')
+                self.lastSize = len(received[4])
+            if (self.ack % MOD) == int.from_bytes(received[1], 'big'):
+                if len(received[4]) == CHUNK:
+                    self.ack = (self.ack + CHUNK) % MOD
+                else:
+                    self.ack = (self.ack + len(received[4])) % MOD
+        else:
+            self.seqChunks[int.from_bytes(received[1], 'big')] += 1
+            if self.seqChunks[int.from_bytes(received[1], 'big')] == 20:
+                raise ErrorServer
+
+        while True:
+            if self.ackChunks.count(self.ack % MOD) == 0:
+                break
+            if self.lastSeq != self.ack:
+                self.ack = (self.ack + CHUNK) % MOD
+            else:
+                self.ack = (self.ack + self.lastSize) % MOD
+
 class Upload(Operation):
     '''Class which handles uploading of a firmware to the probe'''
     def __init__(self, sock):
