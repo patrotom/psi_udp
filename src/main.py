@@ -5,6 +5,7 @@ from binascii import hexlify
 
 BUFFER_SIZE = 512
 SERVER_ADDRESS = '127.0.0.1', 4000
+FIRMWARE = 'firmware.bin'
 CHUNK = 255
 MOD = 65536
 
@@ -221,6 +222,26 @@ class Upload(Operation):
     
     def start(self):
         '''Method which starts and handles uploading'''
+        print('Uploading firmware...')
+        print(SERVER_ADDRESS)
+        print(FIRMWARE)
+
+def parseArgs():
+    args = str(sys.argv)
+    args = args.replace('[', '')
+    args = args.replace(']', '')
+    args = args.replace("'", '')
+    args = args.replace(' ', '')
+    argList = args.split(',')[1:]
+    global SERVER_ADDRESS
+    global FIRMWARE
+    if len(argList) == 1:
+        SERVER_ADDRESS = argList[0], 4000
+        return 1
+    elif len(argList) == 2:
+        SERVER_ADDRESS = argList[0], 4000
+        FIRMWARE = argList[1]
+        return 2
 
 def main():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -228,6 +249,6 @@ def main():
     print('Starting up on {}, port {}\n'.format(*server_address))
     sock.bind(server_address)
     h = Handler(sock)
-    h.handle(1)
+    h.handle(parseArgs())
     
 main ()
