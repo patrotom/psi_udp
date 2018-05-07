@@ -156,15 +156,13 @@ class Download(Operation):
             super().setup(1)
             print('\n=========================================\nConnecton established, now downloading...\n=========================================\n')
             self.download()
+            super().endConnection()
         except ErrorServer:
             print('=====================================================\nError detected on the server side, connection closed.\n=====================================================')
-            return
         except ErrorClient:
             super().endError()
             print('=====================================================\nError detected on the client side, connection closed.\n=====================================================')
             self.sock.close()
-            return
-        super().endConnection()
 
     def download(self):
         '''Method which downloads data from the probe'''
@@ -173,6 +171,8 @@ class Download(Operation):
             self.controller.print(received, 'RECV')
 
             if int.from_bytes(received[3], 'big') == 2:
+                if len(received[4]) != 0:
+                    raise ErrorClient
                 break
             if int.from_bytes(received[3], 'big') == 1:
                 raise ErrorServer
