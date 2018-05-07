@@ -6,12 +6,16 @@ from binascii import hexlify
 BUFFER_SIZE = 512
 SERVER_ADDRESS = '127.0.0.1', 4000
 CHUNK = 255
+MOD = 65536
 
 class Error(Exception):
-    pass
-class ErrorClient(Error):
+    '''Default Exception class'''
     pass
 class ErrorServer(Error):
+    '''Error on the server side Exception'''
+    pass
+class ErrorClient(Error):
+    '''Error on the client side Exception'''
     pass
 
 class DatagramControl():
@@ -38,7 +42,7 @@ class DatagramControl():
     
     def print(self, message, type):
         '''Method which prints datagram'''
-        print(str(hexlify(message[0]), 'utf-8') + ' ' + type, '', end=' ')
+        print(str(hexlify(message[0]), 'utf-8').upper() + ' ' + type, '', end=' ')
         tmp = int(str(hexlify(message[1]), 'utf-8'), base=16)
         print('seq=' + str(tmp), '', end=' ')
         tmp = int(str(hexlify(message[2]), 'utf-8'), base=16)
@@ -58,7 +62,7 @@ class DatagramControl():
         print('')
 
 class Handler():
-    '''Class which handles received messages'''
+    '''Class which handles types of the operations'''
     def __init__(self, sock):
         '''Constructor'''
         self.sock = sock
@@ -70,7 +74,7 @@ class Handler():
             if operation == 2:
                 u = Upload(self.sock)
                 u.start()
-            else:
+            elif operation == 1:
                 d = Download(self.sock)
                 d.start()
         except KeyboardInterrupt:
@@ -93,51 +97,33 @@ class Operation():
         sent = (0).to_bytes(8, 'big') + (4).to_bytes(1, 'big') + (type).to_bytes(1, 'big')
         to_print = (0).to_bytes(4, 'big'), (0).to_bytes(2, 'big'), (0).to_bytes(2, 'big'), (4).to_bytes(1, 'big'), (type).to_bytes(1, 'big')
         self.sock.settimeout(0.1)
+        
         flag = True
+        cnt = 0
         while True:
             flag = True
             self.controller.print(to_print, 'SEND')
             self.sock.sendto(sent, SERVER_ADDRESS)
             try:
+                if cnt == 20:
+                    raise ErrorClient
                 received = self.controller.receive()
                 if int.from_bytes(received[3], 'big') != 4:
                     flag = False
+                elif int.from_bytes(received[3], 'big') == 0:
+                    raise ErrorServer
             except socket.timeout:
                 flag = False
             if flag == True:
                 break
+            cnt += 1
 
         self.id = received[0]
         self.controller.print(received, 'RECV')
-        self.sock.settimeout(None)
-
-class Download(Operation):
-    '''Class which handles downloading of a picture from the probe'''
-    def __init__(self, sock):
-        '''Constructor'''
-        super().__init__(sock, DatagramControl(sock))
-        self.data = {}
-        self.lastSeq = -1
-        self.lastSize = -1
-
-    def start(self):
-        '''Method which starts and handles downloading'''
-        try:
-            super().setup(1)
-            print('\n=========================================\nConnecton established, now downloading...\n=========================================\n')
-            self.download()
-        except ErrorClient:
-            self.endError()
-            print('====================================================\nConnection closed due to error on the client side...\n====================================================')
-            return
-        except ErrorServer:
-            print('====================================================\nConnection closed due to error on the server side...\n====================================================')
-            self.sock.close()
-            return
-        self.endConnection()
-
+        self.sock.settimeout(1)
+    
     def endError(self):
-        '''Method which sends rst flag and ends connection due to error'''
+        '''Method which sends rst flag and ends connection due to detected error on the client side'''
         sent = self.id + (0).to_bytes(2, 'big') + self.ack.to_bytes(2, 'big') + (1).to_bytes(1, 'big')
         to_print = self.id, (0).to_bytes(2, 'big'), self.ack.to_bytes(2, 'big'), (1).to_bytes(1, 'big'), []
         self.sock.sendto(sent, SERVER_ADDRESS)
@@ -150,9 +136,32 @@ class Download(Operation):
         to_print = self.id, (0).to_bytes(2, 'big'), self.ack.to_bytes(2, 'big'), (2).to_bytes(1, 'big'), []
         self.sock.sendto(sent, SERVER_ADDRESS)
         self.controller.print(to_print, 'SEND')
-        
         self.sock.close()
-        print('=================================================================\nSuccess: Connection was closed. Transferred', self.ack, 'bytes','\n=================================================================')
+        print('======================================================\nSuccess: Connection was closed. All bytes transferred.\n======================================================')
+
+class Download(Operation):
+    '''Class which handles downloading of a picture from the probe'''
+    def __init__(self, sock):
+        '''Constructor'''
+        super().__init__(sock, DatagramControl(sock))
+        self.lastSeq = -1
+        self.lastSize = -1
+
+    def start(self):
+        '''Method which starts and handles downloading'''
+        try:
+            super().setup(1)
+            print('\n=========================================\nConnecton established, now downloading...\n=========================================\n')
+            self.download()
+        except ErrorServer:
+            print('=====================================================\nError detected on the server side, connection closed.\n=====================================================')
+            return
+        except ErrorClient:
+            super().endError()
+            print('=====================================================\nError detected on the client side, connection closed.\n=====================================================')
+            self.sock.close()
+            return
+        super().endConnection()
 
     def download(self):
         '''Method which downloads data from the probe'''
@@ -163,34 +172,33 @@ class Download(Operation):
             if int.from_bytes(received[3], 'big') == 2:
                 break
             if int.from_bytes(received[3], 'big') == 1:
-                raise ErrorServer
+                raise ErrorClient
             if received[0] != self.id:
                 raise ErrorClient
             
             if self.ackChunks.count(int.from_bytes(received[1], 'big')) == 0:
                 self.seqChunks[int.from_bytes(received[1], 'big')] = 1
                 self.ackChunks.append(int.from_bytes(received[1], 'big'))
-                self.data[int.from_bytes(received[1], 'big')] = received[4]
-                if len(received[4]) != 255:
+                if len(received[4]) != CHUNK:
                     self.lastSeq = int.from_bytes(received[1], 'big')
                     self.lastSize = len(received[4])
-                if (self.ack % 65536) == int.from_bytes(received[1], 'big'):
-                    if len(received[4]) == 255:
-                        self.ack = (self.ack + CHUNK) % 65536
+                if (self.ack % MOD) == int.from_bytes(received[1], 'big'):
+                    if len(received[4]) == CHUNK:
+                        self.ack = (self.ack + CHUNK) % MOD
                     else:
-                        self.ack = (self.ack + len(received[4])) % 65536
+                        self.ack = (self.ack + len(received[4])) % MOD
             else:
                 self.seqChunks[int.from_bytes(received[1], 'big')] += 1
                 if self.seqChunks[int.from_bytes(received[1], 'big')] == 20:
-                    raise ErrorClient
-            
+                    raise ErrorServer
+
             while True:
-                if self.ackChunks.count(self.ack % 65536) == 0:
+                if self.ackChunks.count(self.ack % MOD) == 0:
                     break
                 if self.lastSeq != self.ack:
-                    self.ack = (self.ack + CHUNK) % 65536
+                    self.ack = (self.ack + CHUNK) % MOD
                 else:
-                    self.ack = (self.ack + self.lastSize) % 65536
+                    self.ack = (self.ack + self.lastSize) % MOD
 
             sent = self.id + (0).to_bytes(2, 'big') + self.ack.to_bytes(2, 'big') + (0).to_bytes(1, 'big')
             to_print = self.id, (0).to_bytes(2, 'big'), self.ack.to_bytes(2, 'big'), (0).to_bytes(1, 'big'), []
