@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 import socket
 import sys
+import os
 from binascii import hexlify
 from sortedcontainers import SortedDict
 
@@ -12,6 +13,7 @@ SERVER_ADDRESS = '127.0.0.1', SERVER_PORT
 FIRMWARE = 'firmware.bin'
 CHUNK = 255
 MOD = 65536
+WINDOW_SIZE = 2040
 
 
 class Error(Exception):
@@ -134,7 +136,7 @@ class Operation():
         
         if len(received[4]) != 1 and (int.from_bytes(received[4], 'big') != 1 or int.from_bytes(received[4], 'big') != 2):
             raise ErrorClient
-        self.sock.settimeout(1)
+        self.sock.settimeout(None)
     
     def end_error(self):
         '''Method which sends rst flag and ends connection due to detected error on the client side'''
@@ -193,17 +195,9 @@ class Download(Operation):
         while True:
             received = self.controller.receive()
             self.controller.print(received, 'RECV')
-            if int.from_bytes(received[3], 'big') == 2:
-                if len(received[4]) != 0:
-                    raise ErrorClient
+            
+            if self.validate_input(received):
                 break
-            if int.from_bytes(received[3], 'big') == 1:
-                raise ErrorServer
-            if int.from_bytes(received[3], 'big') != 0:
-                raise ErrorClient
-            if received[0] != self.id:
-                raise ErrorClient
-
             self.ack_count(received)
 
             sent = self.id + (0).to_bytes(2, 'big') + self.ack.to_bytes(2, 'big') + (0).to_bytes(1, 'big')
@@ -217,14 +211,7 @@ class Download(Operation):
             self.seq_chunks[int.from_bytes(received[1], 'big')] = 1
             self.ack_chunks.append(int.from_bytes(received[1], 'big'))
             
-            if len(received[4]) == CHUNK:
-                idx = int.from_bytes(received[1], 'big') % CHUNK
-                if idx == 0:
-                    idx = CHUNK
-                if self.mod_list.count(idx) == 0:
-                    self.data[idx] = SortedDict({})
-                    self.mod_list.append(idx)
-                self.data[idx][int.from_bytes(received[1], 'big')] = received[4]
+            self.update_data(received)
 
             if len(received[4]) != CHUNK:
                 self.last_seq = int.from_bytes(received[1], 'big')
@@ -248,12 +235,41 @@ class Download(Operation):
             else:
                 self.ack = (self.ack + self.last_size) % MOD
 
+    def update_data(self, received):
+        '''Method which handles correct storing of downloaded data'''
+        if len(received[4]) == CHUNK:
+            idx = int.from_bytes(received[1], 'big') % CHUNK
+            if idx == 0:
+                idx = CHUNK
+            if self.mod_list.count(idx) == 0:
+                self.data[idx] = SortedDict({})
+                self.mod_list.append(idx)
+            self.data[idx][int.from_bytes(received[1], 'big')] = received[4]
+
+    def validate_input(self, received):
+        '''Method which validates input data'''
+        if int.from_bytes(received[3], 'big') == 2:
+            if len(received[4]) != 0:
+                raise ErrorClient
+            return True
+        if int.from_bytes(received[3], 'big') == 1:
+            raise ErrorServer
+        if int.from_bytes(received[3], 'big') != 0:
+            raise ErrorClient
+        if received[0] != self.id:
+            raise ErrorClient
+        return False
+
 
 class Upload(Operation):
     '''Class which handles uploading of a firmware to the probe'''
     def __init__(self, sock):
         '''Constructor'''
         super().__init__(sock, DatagramControl(sock))
+        self.f_upload = open(FIRMWARE, 'rb')
+        self.file_info = os.stat(FIRMWARE)
+        self.file_size = self.file_info.st_size
+        self.act_size = self.file_info.st_size
     
     def start(self):
         '''Method which starts and handles uploading'''
@@ -271,7 +287,36 @@ class Upload(Operation):
     
     def upload(self):
         '''Method which uploads firmware to probe'''
+        while True:
+            window = []
+            cnt = 0
+            while True:
+                cnt += 1
+                data, eof = self.load_data()
+                window.append(data)
+                if cnt == 8 or eof == True:
+                    break
+            
+            # received = self.controller.receive()
+            # self.controller.print(received, 'RECV')
+            
+            # if super().validate_input(received):
+            #     break
+            # self.ack_count(received)
 
+            # sent = self.id + (0).to_bytes(2, 'big') + self.ack.to_bytes(2, 'big') + (0).to_bytes(1, 'big')
+            # to_print = self.id, (0).to_bytes(2, 'big'), self.ack.to_bytes(2, 'big'), (0).to_bytes(1, 'big'), []
+            # self.sock.sendto(sent, SERVER_ADDRESS)
+            # self.controller.print(to_print, 'SEND')
+
+    def load_data(self):
+        '''Method which reads desired amount of data from file and returns them to be sent'''
+        if self.act_size < CHUNK:
+            self.act_size = 0
+            return self.f_upload.read(self.act_size), True            
+        
+        self.act_size -= 255
+        return self.f_upload.read(CHUNK), False
 
 def parse_args():
     '''Function which parses input arguments'''
