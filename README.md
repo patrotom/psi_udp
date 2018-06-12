@@ -236,7 +236,7 @@ Za úlohu můžete dostat max. 8 bodů. Penalizace:
 
 ## Additonal information ##
 
-* It is possible ot send datagrams using nc tool
+* It is possible to send datagrams using nc tool
     * `-u` use UDP instead of default TCP
     * `-q` wait the specified number of seconds and then quit
     * read `man nc` for additinal information
