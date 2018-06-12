@@ -82,8 +82,8 @@ class Handler():
         '''Method which handles required operation (0-download, 1-upload)'''
         try:
             if operation == 2:
-                u = Upload(self.sock)
-                u.start()
+                # Ready for implementation of upload
+                pass
             elif operation == 1:
                 d = Download(self.sock)
                 d.start()
@@ -100,7 +100,6 @@ class Operation():
         self.id = b''
         self.last_data = b''
         self.ack = 0
-        self.seq = 0
         self.ack_chunks = []
         self.mod_list = []
         self.seq_chunks = {}
@@ -261,63 +260,6 @@ class Download(Operation):
         return False
 
 
-class Upload(Operation):
-    '''Class which handles uploading of a firmware to the probe'''
-    def __init__(self, sock):
-        '''Constructor'''
-        super().__init__(sock, DatagramControl(sock))
-        self.f_upload = open(FIRMWARE, 'rb')
-        self.file_info = os.stat(FIRMWARE)
-        self.file_size = self.file_info.st_size
-        self.act_size = self.file_info.st_size
-    
-    def start(self):
-        '''Method which starts and handles uploading'''
-        try:
-            super().setup(2)
-            print('\n===========================================\nConnecton established, now uploading...\n===========================================\n')
-            self.upload()
-            super().end_connection()
-        except ErrorServer:
-            print('=====================================================\nError detected on the server side, connection closed.\n=====================================================')
-        except ErrorClient:
-            super().end_error()
-            print('=====================================================\nError detected on the client side, connection closed.\n=====================================================')
-            self.sock.close()
-    
-    def upload(self):
-        '''Method which uploads firmware to probe'''
-        while True:
-            window = []
-            cnt = 0
-            while True:
-                cnt += 1
-                data, eof = self.load_data()
-                window.append(data)
-                if cnt == 8 or eof == True:
-                    break
-            
-            # received = self.controller.receive()
-            # self.controller.print(received, 'RECV')
-            
-            # if super().validate_input(received):
-            #     break
-            # self.ack_count(received)
-
-            # sent = self.id + (0).to_bytes(2, 'big') + self.ack.to_bytes(2, 'big') + (0).to_bytes(1, 'big')
-            # to_print = self.id, (0).to_bytes(2, 'big'), self.ack.to_bytes(2, 'big'), (0).to_bytes(1, 'big'), []
-            # self.sock.sendto(sent, SERVER_ADDRESS)
-            # self.controller.print(to_print, 'SEND')
-
-    def load_data(self):
-        '''Method which reads desired amount of data from file and returns them to be sent'''
-        if self.act_size < CHUNK:
-            self.act_size = 0
-            return self.f_upload.read(self.act_size), True            
-        
-        self.act_size -= 255
-        return self.f_upload.read(CHUNK), False
-
 def parse_args():
     '''Function which parses input arguments'''
     global SERVER_ADDRESS
@@ -329,6 +271,8 @@ def parse_args():
         SERVER_ADDRESS = sys.argv[1], SERVER_PORT
         FIRMWARE = sys.argv[2]
         return 2
+    else:
+        print('Usage: ./main.py <server> (<firmware.bin> - only for upload)')
 
 
 def main():
