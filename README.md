@@ -1,3 +1,5 @@
+`NOTE: Implementation of upload not done due to lack of time`
+
 # Domácí úloha č. 2 - UDP Klient #
 
 ## Situace ##
